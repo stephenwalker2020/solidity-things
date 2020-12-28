@@ -10,8 +10,9 @@ BOR_ADDRESS = "0x3c9d6c1C73b31c837832c72E04D3152f051fc1A9"
 bor = Contract.from_explorer(BOR_ADDRESS)
 gas_strategy = GasNowScalingStrategy("standard", "fast")
 
-sr_ppt = "0xcF4f8A5e19a1C7AC69729aa215A46ac24E7090d6"
-sr_obtc = "0xF29E1BE74D1F9e3436E8b7AD2756f19A904E7b48"
+srlf_address = "0x661e6E2959A01E8399223C95A7bC93DEfdE3500F"
+sr_ppt_address = "0xcF4f8A5e19a1C7AC69729aa215A46ac24E7090d6"
+sr_obtc_address = "0xF29E1BE74D1F9e3436E8b7AD2756f19A904E7b48"
 
 spf_address = "0x7b9a695421FfB5D0EAF1a634d85524e07d4662eE"
 sp_dai_address = "0x41edC2C7212367FC59983890aad48B92b0Fe296d"
@@ -30,8 +31,35 @@ sp_hbtc_address = "0xb09a612Ebe2AA5750C51eb317820C6f2866A9ca6"
 cover = ""
 curve = "0x7f1AE7A1fC275B5B9C3ad4497Fa94E3b9424E76e"
 
-def _sp_top_up(amount, sp_addrs, pool_len, days=7):
-    spf = Contract.from_explorer(spf_address)
+addr_map = {
+    'ppt': sr_ppt_address,
+    'obtc': sr_obtc_address,
+    'dai': sp_dai_address,
+    'usdc': sp_usdc_address,
+    'weth': sp_weth_address,
+    'usdt': sp_usdt_address,
+    'yfi': sp_yfi_address,
+    'yfii': sp_yfii_address,
+    'link': sp_link_address,
+    'band': sp_band_address,
+    'nest': sp_nest_address,
+    'hbtc': sp_hbtc_address,
+    'curve': curve
+
+}
+
+def check_ts():
+    info = []
+    for (k, v) in addr_map.items():
+        con = Contract.from_explorer(v)
+        finish_ts = con.periodFinish()
+        dt_str = datetime.fromtimestamp(finish_ts).strftime("%Y-%m-%d %H:%M:%S")
+        info.append("{} finished at {}".format(k, dt_str))
+    for message in info:
+        print(message)
+
+def _sp_top_up(amount, sp_addrs, pool_len, days=7, factory=spf_address):
+    fac = Contract.from_explorer(factory)
     for addr in sp_addrs:
         sp = Contract.from_explorer(addr)
         staking_token_address = sp.stakingToken()
@@ -39,20 +67,24 @@ def _sp_top_up(amount, sp_addrs, pool_len, days=7):
         print(remaining_time)
         if remaining_time >= 0:
             raise ValueError("satellite pool {} period not finish, finished in {}".format(addr, datetime.fromtimestamp(sp.periodFinish()).strftime("%Y-%m-%d %H:%M:%S")))
-    exit(1)
+    # exit(1)
     DEPLOYER = accounts.load("deployer")
-    bor.transfer(spf_address, amount*days*pool_len*10**18, {'from': DEPLOYER, 'gas_price': gas_strategy})
+    bor.transfer(factory, amount*days*pool_len*10**18, {'from': DEPLOYER, 'gas_price': gas_strategy})
     for addr in sp_addrs:
         sp = Contract.from_explorer(addr)
         staking_token_address = sp.stakingToken()
-        spf.notifyRewardAmount(staking_token_address, days*24*3600, amount*days*10**18, {'from': DEPLOYER, 'gas_price': gas_strategy})
+        fac.notifyRewardAmount(staking_token_address, days*24*3600, amount*days*10**18, {'from': DEPLOYER, 'gas_price': gas_strategy})
 
 
 def ppt():
-    pass
+    amount = float(input("input amount per day:"))
+    addrs = [sr_ppt_address]
+    _sp_top_up(amount, addrs, len(addrs), factory=srlf_address)
 
 def obtc():
-    pass
+    amount = float(input("input amount per day:"))
+    addrs = [sr_obtc_address]
+    _sp_top_up(amount, addrs, len(addrs), factory=srlf_address)
 
 def sp_first():
     amount = float(input("input amount per day:"))
@@ -61,7 +93,8 @@ def sp_first():
 
 def sp_second():
     amount = float(input("input amount per day:"))
-    sp_addrs = [sp_yfi_address, sp_yfii_address, sp_link_address, sp_band_address, sp_nest_address]
+    # sp_addrs = [sp_yfi_address, sp_yfii_address, sp_link_address, sp_band_address, sp_nest_address]
+    sp_addrs = [sp_yfi_address, sp_yfii_address, sp_band_address, sp_nest_address]
     _sp_top_up(amount, sp_addrs, len(sp_addrs))
 
 def hbtc():
